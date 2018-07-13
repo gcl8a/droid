@@ -62,7 +62,7 @@ void Odometry_calc::init_variables()
 {
   rate = 10;
 
-  base_radius = 0.18;
+  base_radius = 0.227;
     
   t_delta = ros::Duration(1.0 / rate);
   t_next = ros::Time::now() + t_delta;
