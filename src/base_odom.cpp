@@ -1,6 +1,6 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
-#include "std_msgs/Int64.h"
+#include "std_msgs/UInt32.h"
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include <math.h>
@@ -25,7 +25,7 @@ private:
   ros::Time t_next;
   ros::Time then;
     
-  //wheel speeds (in m/s) reported from the encoder manager
+  //wheel speeds (in mrad/s) reported from uC 
   double vLeft;
   double vRight;
     
@@ -38,7 +38,7 @@ private:
     
   ros::Time current_time, last_time;
     
-  void encoderCallback(const droid::MotorData& wheelSpeeds);
+  void encoderCallback(const std_msgs::UInt32& wheelSpeeds);
     
   void init_variables();
   void get_node_params();
@@ -52,8 +52,8 @@ Odometry_calc::Odometry_calc()
     
   ROS_INFO("Started odometry computing node");
     
-  subEncoders = nh.subscribe("encData", 10, &Odometry_calc::encoderCallback, this);
-  odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 50); //not sure I like this being asynchronous
+  subEncoders = nh.subscribe("motor_speeds", 100, &Odometry_calc::encoderCallback);
+  odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 50); 
     
   //Retrieving parameters of this node
   get_node_params();
@@ -63,8 +63,8 @@ void Odometry_calc::init_variables()
 {
   rate = 10;
 
-  base_radius = 0.227;
-    
+  base_radius = 0.227; // needs to agree with base_controller
+
   t_delta = ros::Duration(1.0 / rate);
   t_next = ros::Time::now() + t_delta;
     
@@ -100,7 +100,7 @@ void Odometry_calc::spin()
   while (ros::ok())
     {
       update();
-      loop_rate.sleep();
+      ros::spinOnce();
     }
 }
 
@@ -166,17 +166,20 @@ void Odometry_calc::update()
       odom_pub.publish(odom);
         
       then = now;
-
-      ros::spinOnce();
     }
 
   else {}
 }
 
-void Odometry_calc::encoderCallback(const droid::MotorData& wheelSpeeds)
+void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
 {
-  vLeft  = wheelSpeeds.left;
-  vRight = wheelSpeeds.right;
+  int16_t speeds[2];
+  memcpy(speeds, &wheelSpeeds, 4);
+
+  
+
+  vLeft  = speeds[0];
+  vRight = speeds[1];
 }
 
 int main(int argc, char **argv)
