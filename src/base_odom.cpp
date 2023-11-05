@@ -29,7 +29,7 @@ private:
     
   double x_final, y_final, theta_final;
 
-  ros::Time current_time, last_time;
+  ros::Time curr_time, last_time;
     
   void encoderCallback(const std_msgs::UInt32& wheelSpeeds);
     
@@ -94,7 +94,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
   int16_t speeds[2];
   memcpy(speeds, &wheelSpeeds, 4);
 
-  elapsed = curr_time - last_time;
+  double elapsed = curr_time - last_time;
 
   // vLeft, vRight in m/s    
   float vLeft = speeds[0] * wheel_radius / 1000.;
