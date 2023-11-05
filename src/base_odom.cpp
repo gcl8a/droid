@@ -15,16 +15,11 @@ public:
 
 private:
   ros::NodeHandle nh;
-  //ros::Subscriber sub;
-  ros::Subscriber subEncoders; //subscriber for encoder data (of type droid::MotorData, gives speed in m/s?)
+  ros::Subscriber subEncoders; //subscriber for encoder data (of type droid::MotorData, gives speed in mrad/s)
   ros::Publisher odom_pub;
     
   tf::TransformBroadcaster odom_broadcaster;
 
-  ros::Duration t_delta;
-  ros::Time t_next;
-  ros::Time then;
-    
   //wheel speeds (in mrad/s) reported from uC 
   double vLeft;
   double vRight;
@@ -32,18 +27,14 @@ private:
   //width of the robot (in m)
   double base_radius;
     
-  double rate;
-    
   double x_final, y_final, theta_final;
-    
+
   ros::Time current_time, last_time;
     
   void encoderCallback(const std_msgs::UInt32& wheelSpeeds);
     
   void init_variables();
   void get_node_params();
-    
-  void update();
 };
 
 Odometry_calc::Odometry_calc()
@@ -61,14 +52,7 @@ Odometry_calc::Odometry_calc()
 
 void Odometry_calc::init_variables()
 {
-  rate = 10;
-
   base_radius = 0.227; // needs to agree with base_controller
-
-  t_delta = ros::Duration(1.0 / rate);
-  t_next = ros::Time::now() + t_delta;
-    
-  then = ros::Time::now();
     
   vLeft = 0;
   vRight = 0;
@@ -96,42 +80,44 @@ void Odometry_calc::get_node_params()
 
 void Odometry_calc::spin()
 {
-  ros::Rate loop_rate(rate);
   while (ros::ok())
-    {
-      update();
-      ros::spinOnce();
-    }
+  {
+    ros::spinOnce();
+  }
 }
 
-//Update function
-void Odometry_calc::update()
+// wheelSpeeds is in mrad/sec
+void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
 {
-  ros::Time now = ros::Time::now();
-    
-  if ( now > t_next)
-    {
-      double elapsed = now.toSec() - then.toSec();
-        
-      double u = (vLeft + vRight) / 2.0; //forward velocity in the robot frame
-      double omega = (vRight - vLeft) / (2.0 * base_radius); //angular velocity
+  curr_time = ros::Time::now();
 
-      // calculate the new position of the robot
-      x_final = x_final + cos(theta_final) * u * elapsed;
-      y_final = y_final + sin(theta_final) * u * elapsed;
+  int16_t speeds[2];
+  memcpy(speeds, &wheelSpeeds, 4);
+
+  elapsed = curr_time - last_time;
+
+  // vLeft, vRight in m/s    
+  float vLeft = speeds[0] * wheel_radius / 1000.;
+  float vRight = speeds[1] * wheel_radius / 1000.;
         
+      double u = (vLeft + vRight) / 2.0; // forward velocity in the robot frame
+      double omega = (vRight - vLeft) / (2.0 * base_radius); // angular velocity
+
+      // calculate the new pose of the robot
       theta_final = theta_final + omega * elapsed;
-        
+
+      x_final = x_final + cos((theta + theta_final) / 2.0) * u * elapsed;
+      y_final = y_final + sin((theta + theta_final) / 2.0) * u * elapsed;
+
       geometry_msgs::Quaternion odom_quat;
         
       odom_quat.x = 0.0;
       odom_quat.y = 0.0;
-      odom_quat.z = 0.0;
         
       odom_quat.z = sin(theta_final / 2);
       odom_quat.w = cos(theta_final / 2);
         
-      //first, we'll publish the transform over tf
+      // publish the transform over tf
       geometry_msgs::TransformStamped odom_trans;
       odom_trans.header.stamp = now;
       odom_trans.header.frame_id = "odom";
@@ -145,11 +131,11 @@ void Odometry_calc::update()
       //send the transform
       odom_broadcaster.sendTransform(odom_trans);
         
-      //next, we'll publish the odometry message over ROS
+      // publish the odometry message over ROS
       nav_msgs::Odometry odom;
       odom.header.stamp = now;
       odom.header.frame_id = "odom";
-        
+
       //set the position
       odom.pose.pose.position.x = x_final;
       odom.pose.pose.position.y = y_final;
@@ -164,30 +150,14 @@ void Odometry_calc::update()
         
       //publish the message
       odom_pub.publish(odom);
-        
-      then = now;
-    }
 
-  else {}
-}
-
-void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
-{
-  int16_t speeds[2];
-  memcpy(speeds, &wheelSpeeds, 4);
-
-  
-
-  vLeft  = speeds[0];
-  vRight = speeds[1];
+      last_time = curr_time;
 }
 
 int main(int argc, char **argv)
-
 {
-  ros::init(argc, argv, "base_odom");
-  Odometry_calc obj;
-  obj.spin();
+  Odometry_calc odom;
+  odom.spin();
     
   return 0;
 }
