@@ -44,7 +44,7 @@ Odometry_calc::Odometry_calc()
     
   ROS_INFO("Started odometry computing node");
     
-  subEncoders = nh.subscribe("motor_speeds", 100, &Odometry_calc::encoderCallback);
+  subEncoders = nh.subscribe("motor_speeds", 100, &Odometry_calc::encoderCallback, this);
   odom_pub = nh.advertise<nav_msgs::Odometry>("odom", 50); 
     
   //Retrieving parameters of this node
@@ -122,7 +122,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
         
       // publish the transform over tf
       geometry_msgs::TransformStamped odom_trans;
-      odom_trans.header.stamp = now;
+      odom_trans.header.stamp = curr_time;
       odom_trans.header.frame_id = "odom";
       odom_trans.child_frame_id = "base_link";
         
@@ -136,7 +136,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
         
       // publish the odometry message over ROS
       nav_msgs::Odometry odom;
-      odom.header.stamp = now;
+      odom.header.stamp = curr_time;
       odom.header.frame_id = "odom";
 
       //set the position
@@ -159,6 +159,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
 
 int main(int argc, char **argv)
 {
+	ros::init(argc, argv, "odometry_manager");
   Odometry_calc odom;
   odom.spin();
     
