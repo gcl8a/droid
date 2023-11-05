@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include <geometry_msgs/Twist.h>
 #include <droid/MotorData.h>
+#include <std_msgs/UInt32.h>
 
 class MotorManager
 {
@@ -14,6 +15,7 @@ private:
   ros::Duration CMD_VEL_TIMEOUT;
 
   double base_radius;
+  double wheel_radius;
   double rate;
 
   double vLeft;
@@ -42,7 +44,7 @@ MotorManager::MotorManager(void)
   subCmdVel = nh.subscribe("cmd_vel", 10, &MotorManager::CmdVelCallback, this);
 
   //publish the motor speeds
-  pubMotorTargets = nh.advertise<droid::MotorData>("motor_targets", 10);
+  pubMotorTargets = nh.advertise<std_msgs::UInt32>("motor_targets", 10);
 }
 
 void MotorManager::Init(void)
@@ -50,6 +52,7 @@ void MotorManager::Init(void)
   //these can be changed by params?
   rate = 10;
   base_radius = 0.18;
+  wheel_radius = 0.08;
 
   vLeft = 0;
   vRight = 0;
@@ -89,22 +92,32 @@ void MotorManager::Spin(void)
 
 void MotorManager::Update(void)
 {
-  droid::MotorData motorSpeeds;
+//  droid::MotorData motorSpeeds;
 
-  motorSpeeds.mode  = 1;
-  motorSpeeds.left  = vLeft;
-  motorSpeeds.right = vRight;
-  
-  pubMotorTargets.publish(motorSpeeds);
+//  motorSpeeds.mode  = 1;
+//  motorSpeeds.left  = vLeft;
+//  motorSpeeds.right = vRight;
+
+  // we pass mrad/sec
+  int16_t motor_spd[2];
+  motor_spd[0] = 1000 * vLeft / wheel_radius;
+  motor_spd[1] = 1000 * vRight / wheel_radius;
+
+  // put speeds in the uint32 structure for sending
+  std_msgs::UInt32 motor_cmd;
+  memcpy(&motor_cmd.data, motor_spd, 4);  
+  pubMotorTargets.publish(motor_cmd);
 
   ros::spinOnce();
 }
 
 void MotorManager::CmdVelCallback(const geometry_msgs::Twist& cmd_vel)
 {
+  // in m/s
   double u = cmd_vel.linear.x;
   double omega = cmd_vel.angular.z;
 
+  // in m/sec
   vLeft  = u - omega * base_radius;
   vRight = u + omega * base_radius;
 
