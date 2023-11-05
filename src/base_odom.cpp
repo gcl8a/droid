@@ -67,10 +67,10 @@ void Odometry_calc::init_variables()
 
 void Odometry_calc::get_node_params()
 {
-  if(nh.getParam("rate", rate))
-    {
-      ROS_INFO_STREAM("Rate from param" << rate);
-    }
+  // if(nh.getParam("rate", rate))
+  //   {
+  //     ROS_INFO_STREAM("Rate from param" << rate);
+  //   }
     
   if(nh.getParam("base_radius", base_radius ))
     {
@@ -94,7 +94,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
   int16_t speeds[2];
   memcpy(speeds, &wheelSpeeds, 4);
 
-  double elapsed = curr_time - last_time;
+  double elapsed = (curr_time - last_time).toSec();
 
   // vLeft, vRight in m/s    
   float vLeft = speeds[0] * wheel_radius / 1000.;
