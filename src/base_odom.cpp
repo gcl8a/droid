@@ -26,6 +26,7 @@ private:
     
   //width of the robot (in m)
   double base_radius;
+  double wheel_radius;
     
   double x_final, y_final, theta_final;
 
@@ -53,7 +54,8 @@ Odometry_calc::Odometry_calc()
 void Odometry_calc::init_variables()
 {
   base_radius = 0.227; // needs to agree with base_controller
-    
+  wheel_radius = 0.08;
+
   vLeft = 0;
   vRight = 0;
     
@@ -61,7 +63,7 @@ void Odometry_calc::init_variables()
   y_final = 0;
   theta_final = 0;
     
-  current_time = ros::Time::now();
+  curr_time = ros::Time::now();
   last_time = ros::Time::now();
 }
 
@@ -104,6 +106,7 @@ void Odometry_calc::encoderCallback(const std_msgs::UInt32& wheelSpeeds)
       double omega = (vRight - vLeft) / (2.0 * base_radius); // angular velocity
 
       // calculate the new pose of the robot
+      double theta = theta_final;  //theta from prev iteration
       theta_final = theta_final + omega * elapsed;
 
       x_final = x_final + cos((theta + theta_final) / 2.0) * u * elapsed;
